@@ -1,0 +1,47 @@
+import time
+import smbus2
+
+# BMP280 default address
+BMP280_ADDR = 0x76
+
+# Registers
+CTRL_MEAS = 0xF4
+TEMP_MSB = 0xFA
+CALIB_START = 0x88
+CALIB_END = 0x9F
+
+# Initialize I2C bus
+bus = smbus2.SMBus(1)
+
+# Read calibration data
+calib = bus.read_i2c_block_data(BMP280_ADDR, CALIB_START, CALIB_END - CALIB_START + 1)
+calib = [calib[i] + (calib[i + 1] << 8) for i in range(0, len(calib), 2)]
+
+# Initialize BMP280
+bus.write_byte_data(BMP280_ADDR, CTRL_MEAS, 0xB7)
+
+def categorize_temp(temp):
+    if temp < 24.0:
+        return "Cold"
+    elif 24.0 <= temp <= 32.0:
+        return "Moderate"
+    elif 32.0 < temp <= 36.0:
+        return "Hot"
+    else:
+        return "Very Hot"
+
+while True:
+    data = bus.read_i2c_block_data(BMP280_ADDR, TEMP_MSB, 3)
+    
+    adc_t = (data[0] << 12) + (data[1] << 4) + (data[2] >> 4)
+    
+    var1 = ((adc_t / 16384.0) - (calib[0] / 1024.0)) * calib[1]
+    var2 = ((adc_t / 131072.0) - (calib[0] / 8192.0)) * calib[2]
+    t_fine = var1 + var2
+    temperature = t_fine / 5120.0
+    
+    category = categorize_temp(temperature)
+    
+    print(f"Temperature: {temperature:.2f} °C, Category: {category}")
+    
+    time.sleep(1)
