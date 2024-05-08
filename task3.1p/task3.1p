@@ -1,0 +1,166 @@
+#include "DHT.h"
+#include <WiFiNINA.h>
+
+#define DHTPIN 2
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
+
+//please enter your sensitive data in the Secret tab
+char ssid[] = SECRET_SSID;                // your network SSID (name) = Sia
+char pass[] = SECRET_PASS;                // your network password (use for WPA, or use as key for WEP) = chelsea123
+int status = WL_IDLE_STATUS;   
+char thingSpeakAddress[] = "api.thingspeak.com";
+
+String APIKey = "RPRE01GCZZY8VDLF";             // enter your channel's Write API Key
+
+const int updateInterval = 30 * 1000; // 20 second interval at which to update ThingSpeak
+
+long lastConnectionTime = 0;
+WiFiClient client;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin(); // initialize the sensor
+while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to network: ");
+    Serial.println(ssid);     // Connect to WPA/WPA2 network:
+    status = WiFi.begin(ssid, pass);     // wait 10 seconds for connection:
+    delay(10000);
+  }
+
+   Serial.println("You're connected to the network");
+  Serial.println("---------------------------------------");
+if (client.connect(thingSpeakAddress, 80))
+{
+  Serial.println("Connected to server");
+}
+else {
+  Serial.println("connection failed");
+}
+}
+
+void loop() {
+  // wait a few seconds between measurements.
+  delay(2000);
+
+  // read humidity
+  float humi  = dht.readHumidity();
+  // read temperature as Celsius
+  float tempC = dht.readTemperature();
+  // read temperature as Fahrenheit
+  float tempF = dht.readTemperature(true);
+
+  // check if any reads failed
+  if (isnan(humi) || isnan(tempC) || isnan(tempF)) {
+    Serial.println("Failed to read from DHT sensor!");
+  } else {
+    Serial.print("Humidity: ");
+    Serial.print(humi);
+    Serial.print("%");
+
+    Serial.print("  |  "); 
+
+    Serial.print("Temperature: ");
+    Serial.print(tempC);
+    Serial.print("°C ~ ");
+    Serial.print(tempF);
+    Serial.println("°F");
+  }
+Serial.println("Board Information:");
+    // print your board's IP address:
+    IPAddress ip = WiFi.localIP();
+    Serial.print("IP Address: ");
+    Serial.println(ip);
+
+    // print your network's SSID:
+    Serial.println();
+    Serial.println("Network Information:");
+    Serial.print("SSID: ");
+    Serial.println(WiFi.SSID());
+
+    // print the received signal strength:
+    long rssi = WiFi.RSSI();
+    Serial.print("signal strength (RSSI):");
+    Serial.println(rssi);
+    Serial.println("---------------------------------------");
+String h = String(humi,0); // 
+  String t = String(tempC,0);
+
+  if (client.connected()) {
+
+    Serial.println("Connecting to ThingSpeak...");
+
+    // Update ThingSpeak
+
+    if (millis() - lastConnectionTime >= updateInterval) {
+
+      String tsData = "field1=" + h + "&field2=" + t;
+
+      client.print("POST /update HTTP/1.1\n");
+
+      client.print("Host: api.thingspeak.com\n");
+
+      client.print("Connection: close\n");
+
+      client.print("X-THINGSPEAKAPIKEY: " + APIKey + "\n");
+
+      client.print("Content-Type: application/x-www-form-urlencoded\n");
+
+      client.print("Content-Length: ");
+
+      client.print(tsData.length());
+
+      client.print("\n\n");
+
+      client.print(tsData);
+
+      lastConnectionTime = millis();
+
+         }
+         else
+         {
+          Serial.println("...disconnected");
+
+          client.stop();
+         
+
+    }
+
+  
+      // Print Update Response to Serial Monitor
+
+      if (client.available()) {
+
+        char c = client.read();
+
+        Serial.print(c);
+}
+
+if (Serial.read() == '27°C') {
+char   HOST_NAME[] = "maker.ifttt.com";
+String PATH_NAME   = "/trigger/dht22/with/key/yourkey"; // change your EVENT-NAME and YOUR-KEY
+String queryString = "?value1=27";
+if (client.connect(HOST_NAME, 80)) {
+    // if connected:
+    Serial.println("Connected to server");
+  }
+  else {// if not connected:
+    Serial.println("connection failed");
+  }
+client.println("GET " + PATH_NAME + queryString + " HTTP/1.1");
+    client.println("Host: " + String(HOST_NAME));
+    client.println("Connection: close");
+    client.println(); // end HTTP header
+
+
+    while (client.connected()) {
+      if (client.available()) {
+        // read an incoming byte from the server and print it to serial monitor:
+        char c = client.read();
+        Serial.print(c);
+}
+}
+}
+}
+}
