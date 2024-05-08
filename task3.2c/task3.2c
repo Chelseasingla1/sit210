@@ -1,0 +1,81 @@
+#include <DHT.h>
+#include "thingProperties.h"
+
+int Data = 0;
+int SunlightOn = 25; // threshold value for when Sunlight is considered on the Terrarium, adjust as needed
+#define DHTPin 2 // the pin the DHT sensor is connected to (change this to the appropriate pin)
+DHT dht(DHTPin, DHT22); // Initialize DHT sensor with the appropriate type
+
+void setup() 
+{
+    pinMode(LED_BUILTIN, OUTPUT); // Set the built-in LED as an output
+    
+    dht.begin(); // Initialize the DHT sensor
+    
+    float temperature = dht.readTemperature(); // get the initial temperature reading
+
+    if (temperature >= SunlightOn) // if temperature >= sunlight threshold then Sunlight is on the Terrarium (on program start-up)
+    {
+        Data = 1; // light
+    }
+    else // if temperature < sunlight threshold then Sunlight is off the Terrarium (on program start-up)
+    {
+        Data = 2; // dark
+    }
+
+    // Initialize serial and wait for port to open:
+    Serial.begin(9600);
+    // This delay gives the chance to wait for a Serial Monitor without blocking if none is found
+    delay(1500); 
+
+    // Defined in thingProperties.h
+    initProperties();
+
+    // Connect to Arduino IoT Cloud
+    ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  
+    /*
+       The following function allows you to obtain more information
+       related to the state of the network and IoT Cloud connection and errors
+       the higher number the more granular information you’ll get.
+       The default is 0 (only errors).
+       Maximum is 4
+    */
+    setDebugMessageLevel(2);
+    ArduinoCloud.printDebugInfo();
+}
+
+void loop() 
+{
+    ArduinoCloud.update();
+    float temperature = dht.readTemperature();
+
+    if (Data == 1 && temperature < SunlightOn) // if Data = 1; 'light' and temperature < sunlight threshold - transition from light to dark
+    {
+        Data = 2; // dark
+    }
+    else if (Data == 2 && temperature >= SunlightOn) // if Data = 2; 'dark' and temperature >= sunlight threshold - transition from dark to light
+    {
+        Data = 1; // light
+    }
+
+    digitalWrite(LED_BUILTIN, Data == 1 ? HIGH : LOW); // Turn on the built-in LED based on Data value
+    
+    delay(1000); // delay for 1 second; in a real-life situation, this could/would be made longer, but for demonstration purposes, use 1 sec
+}
+
+/*
+  Since Light is READ_WRITE variable, onLightChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onLightChange()  {
+    // Add your code here to act upon Light change
+}
+
+/*
+  Since SunLight is READ_WRITE variable, onSunLightChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onSunLightChange()  {
+    // Add your code here to act upon SunLight change
+}
